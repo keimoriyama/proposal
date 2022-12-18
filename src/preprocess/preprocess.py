@@ -6,7 +6,7 @@ import ipdb
 
 tokenizer = JanomeBpeTokenizer("../model/codecs.txt")
 
-data_path = "../../data/shinra2022jp_lake_system_crowdsourcing_884.csv"
+data_path = "./data/shinra2022jp_lake_system_crowdsourcing_884.csv"
 
 
 def main():
@@ -28,14 +28,34 @@ def main():
 
     crowd = df.filter(regex="index_id|worker_*")
     crowd["crowd_true_count"] = (crowd == "yes").sum(axis=1)
-    crowd["crowd_false_count"] = (crowd == "no" or crowd == False).sum(axis=1)
+    crowd["crowd_false_count"] = 10 - crowd["crowd_true_count"]
     crowd["crowd_out"] = crowd["crowd_true_count"] / (
         crowd["crowd_true_count"] + crowd["crowd_false_count"]
     )
 
-    ipdb.set_trace()
     df = pd.merge(df, system)
     df = pd.merge(df, crowd)
+    df["text"] = df["text_text"].apply(tokenize_text)
+    df["system_dicision"] = df["system_true_count"] > df["system_false_count"]
+    df["crowd_dicision"] = df["crowd_true_count"] > df["crowd_false_count"]
+    df = (
+        df[
+            [
+                "page_id",
+                "system_dicision",
+                "crowd_dicision",
+                "correct",
+                "text",
+                "attribute",
+                "system_out",
+                "crowd_out",
+            ]
+        ]
+        .replace(True, 1)
+        .replace(False, 0)
+        .reset_index()
+    )
+    df.to_csv("./data/train_{}.csv".format("sample.csv"), index=False)
 
 
 def tokenize_text(text):

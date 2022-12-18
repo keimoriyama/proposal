@@ -14,5 +14,4 @@ src/__pycache__
 core-node.1677211
 eda_notebooks
 train.sh
-config
 Makefile

@@ -6,7 +6,7 @@ model: conv
 dataset:
   num_workers: 8
   name: artificial_data
-  path: aaa
+  path: ./data/train_sample.csv
 train:
   alpha: 0.8
   epoch: 300

@@ -10,10 +10,10 @@ from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 from torchmetrics import ConfusionMatrix, F1Score
 from torchmetrics.functional import precision_recall
+from trainer import ModelTrainer
 
 from dataset import ProposalDataset
 from models import ConvolutionModel
-from trainer import ModelTrainer
 
 
 def run_exp(config):

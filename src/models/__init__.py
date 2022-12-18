@@ -1,1 +1,1 @@
-from model import ConvolutionModel
+from models.model import ConvolutionModel

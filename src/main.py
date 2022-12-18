@@ -2,7 +2,7 @@ import argparse
 
 from omegaconf import OmegaConf
 
-from trainer import train
+from model_trainer.train import run_exp
 
 
 def main():
@@ -22,7 +22,7 @@ def main():
     if args.mode is not None:
         config["mode"] = args.mode
 
-    train(config)
+    run_exp(config=config)
 
 
 if __name__ == "__main__":

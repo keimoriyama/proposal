@@ -1,0 +1,17 @@
+seed: 1234
+name: baseline
+task: baseline
+debug: false
+model: conv
+dataset:
+  num_workers: 8
+  name: artificial_data
+  path: aaa
+train:
+  alpha: 0.8
+  epoch: 300
+  batch_size: 8
+  out_dim: 2
+  learning_rate: 1e-5
+  hidden_dim: 512
+  dropout_rate: 0

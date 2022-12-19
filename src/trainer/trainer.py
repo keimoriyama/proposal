@@ -1,9 +1,9 @@
 import pytorch_lightning as pl
-import torch.nn as nn
 import torch
-from transformers import RobertaConfig, RobertaModel
-from torchmetrics.functional import precision_recall
+import torch.nn as nn
 from torchmetrics import F1Score
+from torchmetrics.functional import precision_recall
+from transformers import RobertaConfig, RobertaModel
 
 torch.autograd.set_detect_anomaly(True)
 
@@ -20,8 +20,8 @@ class ModelTrainer(pl.LightningModule):
         self.path = save_path
         self.min_valid_loss = 1e1000
 
-    def forward(self, input_ids, attention_mask, start_idx, end_idx):
-        return self.model(input_ids, attention_mask, start_idx, end_idx)
+    def forward(self, input_ids, attention_mask):
+        return self.model(input_ids, attention_mask)
 
     def training_step(self, batch, _):
         input_ids = batch["tokens"]
@@ -30,14 +30,7 @@ class ModelTrainer(pl.LightningModule):
         system_dicision = batch["system_dicision"]
         system_out = batch["system_out"]
         annotator = batch["correct"]
-        start_idx = batch["start_idx"]
-        end_idx = batch["end_idx"]
-        out = self.forward(input_ids, attention_mask, start_idx, end_idx)
-        # モデルの出力に合わせるように学習しているような気がする
-        # answer：答えがあっているかどうかの判定（エキスパートの判定）
-        # system_out：システムの正誤判定
-        # cloud_out：クラウドの正誤判定
-        # システムとクラウドのあっている方の正誤判定を採用するようにしたい
+        out = self.forward(input_ids, attention_mask)
         loss = self.loss_function(
             out, system_out, system_dicision, crowd_dicision, annotator
         )
@@ -62,9 +55,7 @@ class ModelTrainer(pl.LightningModule):
         system_out = batch["system_out"]
         crowd_dicision = batch["crowd_dicision"]
         annotator = batch["correct"]
-        start_idx = batch["start_idx"]
-        end_idx = batch["end_idx"]
-        out = self.forward(input_ids, attention_mask, start_idx, end_idx)
+        out = self.forward(input_ids, attention_mask)
 
         loss = self.loss_function(
             out, system_out, system_dicision, crowd_dicision, annotator

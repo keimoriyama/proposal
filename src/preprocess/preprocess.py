@@ -1,8 +1,7 @@
-import pandas as pd
-from tokenizer import JanomeBpeTokenizer
-from omegaconf import OmegaConf
-
 import ipdb
+import pandas as pd
+from omegaconf import OmegaConf
+from tokenizer import JanomeBpeTokenizer
 
 tokenizer = JanomeBpeTokenizer("../model/codecs.txt")
 
@@ -47,6 +46,7 @@ def main():
                 "correct",
                 "text",
                 "attribute",
+                "attribute_id",
                 "system_out",
                 "crowd_out",
             ]
@@ -55,7 +55,7 @@ def main():
         .replace(False, 0)
         .reset_index()
     )
-    df.to_csv("./data/train_{}.csv".format("sample.csv"), index=False)
+    df.to_csv("./data/train_{}.csv".format("sample"), index=False)
 
 
 def tokenize_text(text):

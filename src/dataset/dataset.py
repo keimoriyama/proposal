@@ -1,7 +1,7 @@
 import json
 
 import torch
-from torch.utils import Dataset
+from torch.utils.data import Dataset
 
 
 class ProposalDataset(Dataset):

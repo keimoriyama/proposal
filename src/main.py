@@ -2,7 +2,7 @@ import argparse
 
 from omegaconf import OmegaConf
 
-from model_trainer.train import run_exp
+from trainer.train import run_exp
 
 
 def main():
@@ -11,9 +11,8 @@ def main():
     parser.add_argument("--model", help="choose model to trian and evaluate")
     parser.add_argument("--mode", help="choose train or evaluate")
     parser.add_argument("--exp_name", help="expriment name")
-    parser.add_argument("--task", help="expriment task classification or baseline")
 
-    config = OmegaConf.load("./config/baseline.yml")
+    config = OmegaConf.load("./config/config.yml")
     args = parser.parse_args()
     if args.alpha is not None:
         config.train.alpha = float(args.alpha)

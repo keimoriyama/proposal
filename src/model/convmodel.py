@@ -59,6 +59,7 @@ class ConvolutionModel(ModelInterface):
         self.params = (
             list(self.Linear1.parameters())
             + list(self.Linear2.parameters())
+            + list(self.Linear3.parameters())
             + list(self.Conv1d1.parameters())
             + list(self.Conv1d2.parameters())
         )

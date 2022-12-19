@@ -182,14 +182,17 @@ class ModelTrainer(pl.LightningModule):
         self, output, system_out, system_dicision, crowd_dicision, annotator
     ):
         # log2(0)が入るのを防ぐために、微小値を足しておく
-        output = torch.stack((system_out, output[:, 1]), -1)
         out = self.softmax(output) + 1e-10
-        # import ipdb;ipdb.set_trace()
-        # m1 = (cloud_dicision == annotator).to(int)
-        m1 = (system_dicision != annotator).to(int)
-        m2 = (system_dicision == crowd_dicision == annotator).to(int)
-        loss = -(self.alpha * m2 + (1 - m1)) * torch.log2(out[:, 0]) - m1 * torch.log2(
-            out[:, 1]
+        I_asc = ((annotator == system_dicision) & (annotator == crowd_dicision)).to(int)
+        I_as = (annotator == system_dicision).to(int)
+        I_ac = (annotator == crowd_dicision).to(int)
+        I_nasc = ((annotator != system_dicision) & (annotator != crowd_dicision)).to(
+            int
+        )
+        loss = (
+            -((self.alpha * I_asc) + I_as) * torch.log2(out[:, 0])
+            - ((1 - self.alpha) * I_asc + I_ac) * torch.log2(out[:, 1])
+            - I_nasc * torch.log2(out[:, 2])
         )
         assert not torch.isnan(loss).any()
         loss = torch.mean(loss)

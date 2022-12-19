@@ -32,8 +32,10 @@ def main():
         crowd["crowd_true_count"] + crowd["crowd_false_count"]
     )
 
+    import ipdb;ipdb.set_trace()
     df = pd.merge(df, system)
     df = pd.merge(df, crowd)
+
     df["text"] = df["text_text"].apply(tokenize_text)
     df["system_dicision"] = df["system_true_count"] > df["system_false_count"]
     df["crowd_dicision"] = df["crowd_true_count"] > df["crowd_false_count"]
@@ -46,7 +48,6 @@ def main():
                 "correct",
                 "text",
                 "attribute",
-                "attribute_id",
                 "system_out",
                 "crowd_out",
             ]

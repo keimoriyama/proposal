@@ -91,7 +91,7 @@ def train(config, logger, train_dataloader, valid_dataloader):
         dropout_rate=config.train.dropout_rate,
         kernel_size=4,
         stride=2,
-        load_bert=False,
+        load_bert=True,
     )
 
     modelTrainer = ModelTrainer(
@@ -114,11 +114,11 @@ def eval(config, test, test_dataloader, logger):
         stride=2,
         load_bert=False,
     )
-    path = "./model/baseline/model_{}_alpha_{}_seed_{}.pth".format(
+    path = "./model/proposal/model_{}_alpha_{}_seed_{}.pth".format(
         config.model, config.train.alpha, config.seed
     )
-    # model.load_state_dict(torch.load(path, map_location=device))
-    # model = model.to(device)
+    model.load_state_dict(torch.load(path, map_location=device))
+    model = model.to(device)
     predictions = []
     data = []
     for batch in test_dataloader:

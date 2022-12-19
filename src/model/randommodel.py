@@ -19,19 +19,23 @@ class RandomModel(ModelInterface):
         model_ans = []
         crowd_i = set(random.sample(range(len(crowd_dicision)), crowd_count))
         ann_i = []
-        while len(ann_i) == annotator_count:
-            sample = list(random.sample(range(len(crowd_dicision)), annotator_count))
+        while len(ann_i) != annotator_count:
+            sample = random.sample(range(len(crowd_dicision)))
             for s in sample:
                 if s in crowd_i:
                     continue
                 ann_i.append(s)
         ann_i = set(ann_i)
-        counts = 0
+        c_counts, a_counts = 0, 0
         for i in range(len(crowd_dicision)):
             if i in crowd_i:
                 model_ans.append(crowd_dicision[i])
-                counts += 1
+                c_counts += 1
+            elif i in ann_i:
+                model_ans.append(anotator[i])
+                a_counts += 1
             else:
                 model_ans.append(system_dicision[i])
-        assert counts == crowd_count
+        assert c_counts == crowd_count
+        assert a_counts == annotator_count
         return model_ans

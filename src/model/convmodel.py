@@ -79,23 +79,27 @@ class ConvolutionModel(ModelInterface):
         out = self.model(out)
         return out
 
-    def predict(self, out, system_out, system_dicision, crowd_dicision):
+    def predict(self, out, system_out, system_dicision, crowd_dicision, annotator):
         model_ans = []
         system_crowd = []
-        s_count, c_count = 0, 0
-        for i, (s_out, c_out) in enumerate(zip(system_out, out[:, 1])):
-            s_out = s_out.item()
-            c_out = c_out.item()
-            if s_out > c_out:
+        s_count, c_count, a_count = 0, 0, 0
+        index = torch.argmax(out, dim=1)
+        for i, idx in enumerate(index):
+
+            if idx == 0:
                 model_ans.append(system_dicision[i])
                 s_count += 1
                 system_crowd.append("system")
-            else:
+            elif idx == 1:
                 model_ans.append(crowd_dicision[i])
                 c_count += 1
                 system_crowd.append("crowd")
+            else:
+                model_ans.append(annotator[i])
+                a_count += 1
+                system_crowd.append("annotator")
         model_ans = torch.Tensor(model_ans)
-        return model_ans, s_count, c_count, system_crowd
+        return model_ans, s_count, c_count, a_count, system_crowd
 
     def get_params(self):
         return self.params

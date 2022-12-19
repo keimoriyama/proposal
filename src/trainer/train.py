@@ -64,12 +64,17 @@ def run_exp(config):
         mlflow_logger.log_hyperparams({"mode": config.mode})
         mlflow_logger.log_hyperparams({"seed": config.seed})
         mlflow_logger.log_hyperparams({"model": config.model})
-        eval(config, test, mlflow_logger, test_dataloader)
+        eval(
+            config,
+            test,
+            test_dataloader,
+            mlflow_logger,
+        )
 
 
 def train(config, logger, train_dataloader, valid_dataloader):
     gpu_num = torch.cuda.device_count()
-    save_path = "./model/baseline/model_{}_alpha_{}_seed_{}.pth".format(
+    save_path = "./model/proposal/model_{}_alpha_{}_seed_{}.pth".format(
         config.model, config.train.alpha, config.seed
     )
 
@@ -100,37 +105,35 @@ def train(config, logger, train_dataloader, valid_dataloader):
 
 def eval(config, test, test_dataloader, logger):
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model = model = ConvolutionModel(
+    model = ConvolutionModel(
         token_len=512,
         out_dim=config.train.out_dim,
         hidden_dim=config.train.hidden_dim,
         dropout_rate=config.train.dropout_rate,
         kernel_size=4,
         stride=2,
-        load_bert=True,
+        load_bert=False,
     )
     path = "./model/baseline/model_{}_alpha_{}_seed_{}.pth".format(
         config.model, config.train.alpha, config.seed
     )
-    model.load_state_dict(torch.load(path, map_location=device))
-    model = model.to(device)
+    # model.load_state_dict(torch.load(path, map_location=device))
+    # model = model.to(device)
     predictions = []
     data = []
-    for batch in tqdm(test_dataloader):
+    for batch in test_dataloader:
         input_ids = batch["tokens"].to(device)
         attention_mask = batch["attention_mask"].to(device)
         system_dicision = batch["system_dicision"].to(device)
         system_out = batch["system_out"].to(device)
         crowd_dicision = batch["crowd_dicision"].to(device)
         annotator = batch["correct"].to(device)
-        start_idx = batch["start_idx"].to(device)
-        end_idx = batch["end_idx"].to(device)
         text = batch["text"]
         attribute = batch["attribute"]
         answer = annotator.to("cpu")
-        out = model(input_ids, attention_mask, start_idx, end_idx)
-        model_ans, s_count, c_count, method = model.predict(
-            out, system_out, system_dicision, crowd_dicision
+        out = model(input_ids, attention_mask)
+        model_ans, s_count, c_count, a_count, method = model.predict(
+            out, system_out, system_dicision, crowd_dicision, annotator
         )
 
         texts = []
@@ -162,6 +165,7 @@ def eval(config, test, test_dataloader, logger):
                 "test_f1": f1.item(),
                 "system_count": s_count,
                 "crowd_count": c_count,
+                "annotator_count": a_count,
             }
         ]
     df = pd.DataFrame(data)
@@ -198,7 +202,7 @@ def eval_with_random(predictions, test, logger, config):
     crowd_d = test["crowd_dicision"].to_list()
     system_d = test["system_dicision"].to_list()
     answer = test["correct"].to_list()
-    acc, precision, recall, f1, s_count, c_count = 0, 0, 0, 0, 0, 0
+    acc, precision, recall, f1, s_count, c_count, a_count = 0, 0, 0, 0, 0, 0, 0
     for out in predictions:
         acc += out["test_accuracy"]
         precision += out["test_precision"]
@@ -206,6 +210,7 @@ def eval_with_random(predictions, test, logger, config):
         f1 += out["test_f1"]
         s_count += out["system_count"]
         c_count += out["crowd_count"]
+        a_count += out["annotator_count"]
     acc /= size
     precision /= size
     recall /= size
@@ -216,6 +221,7 @@ def eval_with_random(predictions, test, logger, config):
     logger.log_metrics({"test_f1": f1})
     logger.log_metrics({"test_system_count": s_count})
     logger.log_metrics({"test_crowd_count": c_count})
+    logger.log_metrics({"test_annotator_count": a_count})
     accs, precisions, recalls, f1s = [], [], [], []
     tns, tps, fns, fps, = (
         [],
@@ -226,7 +232,7 @@ def eval_with_random(predictions, test, logger, config):
     # シード値かえて100かい回す
     for i in range(100):
         seed_everything(config.seed + i + 1)
-        random_pred = RandomModel.predict(system_d, crowd_d, c_count)
+        random_pred = RandomModel.predict(system_d, crowd_d, answer, c_count, a_count)
         acc = sum([a == r for a, r in zip(answer, random_pred)]) / len(answer)
         precision, recall, f1, _ = precision_recall_fscore_support(
             random_pred, answer, average="macro"

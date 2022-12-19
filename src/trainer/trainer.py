@@ -34,9 +34,15 @@ class ModelTrainer(pl.LightningModule):
         loss = self.loss_function(
             out, system_out, system_dicision, crowd_dicision, annotator
         )
-        self.log_dict({"train_loss": loss}, on_epoch=True, on_step=True, logger=True)
-        model_ans, _, _, _ = self.model.predict(
-            out, system_out, system_dicision, crowd_dicision
+        self.log_dict(
+            {"train_loss": loss},
+            on_epoch=True,
+            on_step=True,
+            logger=True,
+            sync_dist=True,
+        )
+        model_ans, _, _, _, _ = self.model.predict(
+            out, system_out, system_dicision, crowd_dicision, annotator
         )
         acc, precision, recall, f1 = self.calc_all_metrics(model_ans, annotator)
         log_data = {
@@ -45,7 +51,7 @@ class ModelTrainer(pl.LightningModule):
             "train_recall": recall,
             "train_f1": f1,
         }
-        self.log_dict(log_data, on_epoch=True, logger=True)
+        self.log_dict(log_data, on_epoch=True, logger=True, sync_dist=True)
         return loss
 
     def validation_step(self, batch, _):
@@ -61,8 +67,8 @@ class ModelTrainer(pl.LightningModule):
             out, system_out, system_dicision, crowd_dicision, annotator
         ).item()
 
-        model_ans, s_count, c_count, _ = self.model.predict(
-            out, system_out, system_dicision, crowd_dicision
+        model_ans, s_count, c_count, a_count, _ = self.model.predict(
+            out, system_out, system_dicision, crowd_dicision, annotator
         )
         acc, precision, recall, f1 = self.calc_all_metrics(model_ans, annotator)
         log_data = {
@@ -73,21 +79,23 @@ class ModelTrainer(pl.LightningModule):
             "validation_loss": loss,
             "system_count": s_count,
             "crowd_count": c_count,
+            "annotator_count": a_count,
         }
-        self.log_dict(log_data, on_epoch=True, logger=True)
+        self.log_dict(log_data, on_epoch=True, logger=True, sync_dist=True)
         return log_data
 
     def validation_epoch_end(self, validation_epoch_outputs):
-        system_all_count, crowd_all_count, loss = 0, 0, 0
+        system_all_count, crowd_all_count, annotator_count, loss = 0, 0, 0, 0
         for out in validation_epoch_outputs:
             system_all_count += out["system_count"]
             crowd_all_count += out["crowd_count"]
+            annotator_count += out["annotator_count"]
             loss += out["validation_loss"]
         loss /= len(validation_epoch_outputs)
         data = {"system_count": system_all_count, "crowd_count": crowd_all_count}
         if loss <= self.min_valid_loss:
             torch.save(self.model.state_dict(), self.path)
-        self.log_dict(data)
+        self.log_dict(data, sync_dist=True)
 
     def test_step(self, batch, _):
         input_ids = batch["tokens"]

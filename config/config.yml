@@ -1,7 +1,7 @@
 seed: 1234
 name: baseline
 task: baseline
-debug: True
+debug: False
 model: conv
 dataset:
   num_workers: 8

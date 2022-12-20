@@ -73,10 +73,10 @@ class ConvolutionModel(ModelInterface):
         out = self.flatten(out)
         # import ipdb;ipdb.set_trace()
         out =self.ReLU(self.Linear1(out))
-        if batch_size == 0:
+        if batch_size != 1:
             out = self.batch_norm1(out)
         out = self.ReLU(self.Linear2(out))
-        if batch_size == 0:
+        if batch_size != 1:
             out = self.batch_norm2(out)
         out = self.Linear3(out)
         return out

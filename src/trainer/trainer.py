@@ -190,6 +190,8 @@ class ModelTrainer(pl.LightningModule):
         self, output, system_out, system_dicision, crowd_dicision, annotator
     ):
         # log2(0)が入るのを防ぐために、微小値を足しておく
+        # system_outを使って学習をさせる
+        # output = torch.stack((system_out, output[:, 1], output[:, 2]), -1)
         out = self.softmax(output) + 1e-10
         I_asc = ((annotator == system_dicision) & (annotator == crowd_dicision)).to(int)
         I_as = (annotator == system_dicision).to(int)

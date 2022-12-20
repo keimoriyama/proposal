@@ -32,7 +32,6 @@ def main():
         crowd["crowd_true_count"] + crowd["crowd_false_count"]
     )
 
-    import ipdb;ipdb.set_trace()
     df = pd.merge(df, system)
     df = pd.merge(df, crowd)
 

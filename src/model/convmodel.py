@@ -51,11 +51,13 @@ class ConvolutionModel(ModelInterface):
             )
             + 1
         )
-
+        self.batch_norm1 = nn.BatchNorm1d(self.hidden_dim*4, affine=False)
+        self.batch_norm2 = nn.BatchNorm1d(self.hidden_dim*2, affine=False)
         self.ReLU = nn.ReLU()
         self.Linear1 = nn.Linear(24320, self.hidden_dim * 4)
         self.Linear2 = nn.Linear(self.hidden_dim * 4, self.hidden_dim * 2)
         self.Linear3 = nn.Linear(self.hidden_dim * 2, out_dim)
+        self.dropout = nn.Dropout(p = self.dropout_rate)
         self.params = (
             list(self.Linear1.parameters())
             + list(self.Linear2.parameters())
@@ -65,11 +67,17 @@ class ConvolutionModel(ModelInterface):
         )
 
     def model(self, input):
+        batch_size = input.size()[0]
         out = self.ReLU(self.Conv1d1(input))
         out = self.ReLU(self.Conv1d2(out))
         out = self.flatten(out)
-        out = self.ReLU(self.Linear1(out))
+        # import ipdb;ipdb.set_trace()
+        out =self.ReLU(self.Linear1(out))
+        if batch_size == 0:
+            out = self.batch_norm1(out)
         out = self.ReLU(self.Linear2(out))
+        if batch_size == 0:
+            out = self.batch_norm2(out)
         out = self.Linear3(out)
         return out
 

@@ -71,6 +71,9 @@ class ModelTrainer(pl.LightningModule):
             out, system_out, system_dicision, crowd_dicision, annotator
         )
         acc, precision, recall, f1 = self.calc_all_metrics(model_ans, annotator)
+        s_count = float(s_count)
+        c_count = float(c_count)
+        a_count = float(a_count)
         log_data = {
             "valid_accuracy": acc,
             "valid_precision": precision,
@@ -92,7 +95,10 @@ class ModelTrainer(pl.LightningModule):
             annotator_count += out["annotator_count"]
             loss += out["validation_loss"]
         loss /= len(validation_epoch_outputs)
-        data = {"system_count": system_all_count, "crowd_count": crowd_all_count}
+        system_all_count = float(system_all_count)
+        crowd_all_count = float(crowd_all_count)
+        annotator_count = float(annotator_count)
+        data = {"system_count": system_all_count, "crowd_count": crowd_all_count, "annotator_count": annotator_count}
         if loss <= self.min_valid_loss:
             torch.save(self.model.state_dict(), self.path)
         self.log_dict(data, sync_dist=True)
@@ -104,16 +110,9 @@ class ModelTrainer(pl.LightningModule):
         system_out = batch["system_out"]
         crowd_dicision = batch["crowd_dicision"]
         annotator = batch["correct"]
-        start_idx = batch["start_idx"]
-        end_idx = batch["end_idx"]
-        out = self.forward(input_ids, attention_mask, start_idx, end_idx)
-        if out is not None:
-            model_ans, s_count, c_count = self.model.predict(
+        out = self.forward(input_ids, attention_mask)
+        model_ans, s_count, c_count, a_count, _ = self.model.predict(
                 out, system_out, system_dicision, crowd_dicision
-            )
-        else:
-            model_ans, s_count, c_count = self.model.predict(
-                system_dicision, crowd_dicision
             )
         acc, precision, recall, f1 = self.calc_all_metrics(model_ans, annotator)
         log_data = {
@@ -123,6 +122,7 @@ class ModelTrainer(pl.LightningModule):
             "test_f1": f1.item(),
             "system_count": s_count,
             "crowd_count": c_count,
+            "annotator_count": a_count
         }
         return log_data
 
@@ -136,6 +136,7 @@ class ModelTrainer(pl.LightningModule):
             f1 += out["test_f1"]
             s_count += out["system_count"]
             c_count += out["crowd_count"]
+            a_count += out["annotator_count"]
         acc /= size
         precision /= size
         recall /= size
@@ -146,6 +147,7 @@ class ModelTrainer(pl.LightningModule):
         self.logger.log_metrics({"test_f1": f1})
         self.logger.log_metrics({"test_system_count": s_count})
         self.logger.log_metrics({"test_crowd_count": c_count})
+        self.logger.log_metrics({"test_annotator_count": a_count})
 
     def predict_step(self, batch, _):
         input_ids = batch["tokens"]
@@ -154,16 +156,9 @@ class ModelTrainer(pl.LightningModule):
         system_out = batch["system_out"]
         crowd_dicision = batch["crowd_dicision"]
         annotator = batch["correct"]
-        start_idx = batch["start_idx"]
-        end_idx = batch["end_idx"]
-        out = self.forward(input_ids, attention_mask, start_idx, end_idx)
-        if out is not None:
-            model_ans, s_count, c_count = self.model.predict(
+        out = self.forward(input_ids, attention_mask)
+        model_ans, s_count, c_count = self.model.predict(
                 out, system_out, system_dicision, crowd_dicision
-            )
-        else:
-            model_ans, s_count, c_count = self.model.predict(
-                system_dicision, crowd_dicision
             )
         acc, precision, recall, f1 = self.calc_all_metrics(model_ans, annotator)
         log_data = {
@@ -191,7 +186,7 @@ class ModelTrainer(pl.LightningModule):
     ):
         # log2(0)が入るのを防ぐために、微小値を足しておく
         # system_outを使って学習をさせる
-        # output = torch.stack((system_out, output[:, 1], output[:, 2]), -1)
+        output = torch.stack((system_out, output[:, 1], output[:, 2]), -1)
         out = self.softmax(output) + 1e-10
         I_asc = ((annotator == system_dicision) & (annotator == crowd_dicision)).to(int)
         I_as = (annotator == system_dicision).to(int)

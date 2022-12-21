@@ -73,11 +73,11 @@ class ConvolutionModel(ModelInterface):
         out = self.flatten(out)
         # import ipdb;ipdb.set_trace()
         out =self.ReLU(self.Linear1(out))
-        if batch_size != 1:
-            out = self.batch_norm1(out)
+        #if batch_size != 1:
+        #    out = self.batch_norm1(out)
         out = self.ReLU(self.Linear2(out))
-        if batch_size != 1:
-            out = self.batch_norm2(out)
+        #if batch_size != 1:
+        #    out = self.batch_norm2(out)
         out = self.Linear3(out)
         return out
 
@@ -91,9 +91,9 @@ class ConvolutionModel(ModelInterface):
         model_ans = []
         system_crowd = []
         s_count, c_count, a_count = 0, 0, 0
+        out = torch.stack((system_out, out[:, 1], out[:, 2]), -1)
         index = torch.argmax(out, dim=1)
         for i, idx in enumerate(index):
-
             if idx == 0:
                 model_ans.append(system_dicision[i])
                 s_count += 1

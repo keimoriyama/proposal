@@ -19,7 +19,7 @@ from trainer.trainer import ModelTrainer
 
 def run_exp(config):
     seed_everything(config.seed)
-    exp_name = config.name + "_{}_{}".format(config.train.alpha, config.model)
+    exp_name = config.name
     debug = config.debug
     batch_size = config.train.batch_size
     data_path = config.dataset.path

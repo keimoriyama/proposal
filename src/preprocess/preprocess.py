@@ -2,6 +2,7 @@ import ipdb
 import pandas as pd
 from omegaconf import OmegaConf
 from tokenizer import JanomeBpeTokenizer
+import random
 
 tokenizer = JanomeBpeTokenizer("../model/codecs.txt")
 
@@ -9,7 +10,7 @@ data_path = "./data/shinra2022jp_lake_system_crowdsourcing_884.csv"
 
 
 def main():
-    # config = OmegaConf.load("./config/baseline.yml")
+    config = OmegaConf.load("./config/config.yml")
     df = pd.read_csv(data_path)
     df = df.reset_index(drop=True)
     df["index_id"] = [i + 1000 for i in range(len(df))]
@@ -34,10 +35,20 @@ def main():
 
     df = pd.merge(df, system)
     df = pd.merge(df, crowd)
-
     df["text"] = df["text_text"].apply(tokenize_text)
     df["system_dicision"] = df["system_true_count"] > df["system_false_count"]
     df["crowd_dicision"] = df["crowd_true_count"] > df["crowd_false_count"]
+    if config.dataset.name == "artificial":
+        data = []
+        for i in range(len(df)):
+            d = df.iloc[i]
+            di = {}
+            if random.random() > 0.3:
+                d['crowd_dicision'] = not(d['correct'])
+                d['system_dicision'] = not(d['correct'])
+            di = d.to_dict()
+            data.append(di)
+        df = pd.DataFrame(data)
     df = (
         df[
             [
@@ -55,7 +66,7 @@ def main():
         .replace(False, 0)
         .reset_index()
     )
-    df.to_csv("./data/train_{}.csv".format("sample"), index=False)
+    df.to_csv("./data/train_{}.csv".format("sample_"+config.dataset.name), index=False)
 
 
 def tokenize_text(text):

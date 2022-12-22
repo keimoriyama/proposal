@@ -17,7 +17,7 @@ class RandomModel(ModelInterface):
         crowd_i = set(random.sample(range(len(crowd_dicision)), crowd_count))
         ann_i = []
         while len(ann_i) != annotator_count:
-            sample = random.sample(range(len(crowd_dicision)))
+            sample = random.sample(range(len(crowd_dicision)), k=annotator_count)
             for s in sample:
                 if s in crowd_i:
                     continue

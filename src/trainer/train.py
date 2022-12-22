@@ -22,7 +22,7 @@ def run_exp(config):
     exp_name = config.name
     debug = config.debug
     batch_size = config.train.batch_size
-    data_path = config.dataset.path
+    data_path = "./data/train_{}.csv".format("sample_"+config.dataset.name)
     df = pd.read_csv(data_path)
     df["text"] = [ast.literal_eval(d) for d in df["text"]]
     train_df, validate = train_test_split(df, test_size=0.2, stratify=df["correct"])
@@ -57,6 +57,7 @@ def run_exp(config):
         mlflow_logger.log_hyperparams({"mode": config.mode})
         mlflow_logger.log_hyperparams({"seed": config.seed})
         mlflow_logger.log_hyperparams({"model": config.model})
+        mlflow_logger.log_hyperparams({"dataseat": config.dataset.name})
         train(config, mlflow_logger, train_dataloader, validate_dataloader)
     else:
         mlflow_logger = MLFlowLogger(experiment_name="test")
@@ -64,6 +65,7 @@ def run_exp(config):
         mlflow_logger.log_hyperparams({"mode": config.mode})
         mlflow_logger.log_hyperparams({"seed": config.seed})
         mlflow_logger.log_hyperparams({"model": config.model})
+        mlflow_logger.log_hyperparams({"dataseat": config.dataset.name})
         eval(
             config,
             test,

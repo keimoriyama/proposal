@@ -1,4 +1,0 @@
-artifact_location: file:./mlruns/6
-experiment_id: '6'
-lifecycle_stage: active
-name: add batch norm_0.0_conv

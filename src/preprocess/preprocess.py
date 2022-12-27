@@ -43,7 +43,7 @@ def main():
         for i in range(len(df)):
             d = df.iloc[i]
             di = {}
-            if random.random() > 0.3:
+            if random.random() < 0.3:
                 d['crowd_dicision'] = not(d['correct'])
                 d['system_dicision'] = not(d['correct'])
             di = d.to_dict()

@@ -8,20 +8,17 @@ class RandomModel(ModelInterface):
         super().__init__()
         self.out_dim = out_dim
 
-    # TODO:　annotatorの解答も引数に加える
     @classmethod
     def predict(
         cls, system_dicision, crowd_dicision, anotator, crowd_count, annotator_count
     ):
         model_ans = []
-        crowd_i = set(random.sample(range(len(crowd_dicision)), crowd_count))
-        ann_i = []
-        while len(ann_i) != annotator_count:
-            sample = random.sample(range(len(crowd_dicision)), k=annotator_count)
-            for s in sample:
-                if s in crowd_i:
-                    continue
-                ann_i.append(s)
+        indexes = [i for i in range(len(system_dicision))]
+        crowd_i =random.sample(indexes, crowd_count)
+        for c_i in crowd_i:
+            indexes.remove(c_i)
+        ann_i = random.sample(indexes, annotator_count)
+        crowd_i = set(crowd_i)	
         ann_i = set(ann_i)
         c_counts, a_counts = 0, 0
         for i in range(len(crowd_dicision)):

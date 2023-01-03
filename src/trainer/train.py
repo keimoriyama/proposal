@@ -37,6 +37,10 @@ def run_exp(config):
     validate_df = validate.reset_index()
     test_df = test.reset_index()
 
+    train_df.to_csv("./data/train.csv")
+    validate_df.to_csv("./data/validate.csv")
+    test_df.to_csv("./data/test.csv")
+
     train_dataset = ProposalDataset(train_df)
     valid_dataset = ProposalDataset(validate_df)
     test_dataset = ProposalDataset(test_df)

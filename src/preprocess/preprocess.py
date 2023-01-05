@@ -4,6 +4,14 @@ from omegaconf import OmegaConf
 from tokenizer import JanomeBpeTokenizer
 import random
 
+from sklearn.metrics import (
+    confusion_matrix,
+    precision_score,
+    recall_score,
+    f1_score,
+    accuracy_score,
+)
+
 tokenizer = JanomeBpeTokenizer("../model/codecs.txt")
 
 data_path = "./data/shinra2022jp_lake_system_crowdsourcing_884.csv"
@@ -67,6 +75,10 @@ def main():
         .reset_index()
     )
     df.to_csv("./data/train_{}.csv".format("sample_"+config.dataset.name), index=False)
+    print("system")
+    calc_metrics(df["correct"], df["system_dicision"])
+    print("crowd")
+    calc_metrics(df["correct"], df["crowd_dicision"])
 
 
 def tokenize_text(text):
@@ -76,6 +88,17 @@ def tokenize_text(text):
 def remove_return(s):
     return s.replace("\n", "")
 
+
+def calc_metrics(ans, out):
+    acc = accuracy_score(ans, out)
+    pre = precision_score(ans, out)
+    recall = recall_score(ans, out)
+    f1 = f1_score(ans, out)
+    print(
+        "accuracy: {:.3}, f1: {:.3}, precision: {:.3}, recall: {:.3}".format(
+            acc, f1, pre, recall
+        )
+    )
 
 if __name__ == "__main__":
     main()

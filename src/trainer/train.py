@@ -22,7 +22,10 @@ def run_exp(config):
     exp_name = config.name
     debug = config.debug
     batch_size = config.train.batch_size
-    data_path = "./data/train_{}.csv".format("sample_"+config.dataset.name)
+    if config.dataset.name is not None:
+        data_path = "./data/train_{}.csv".format("sample_"+config.dataset.name)
+    else:
+        data_path = "./data/train_sample.csv"
     df = pd.read_csv(data_path)
     df["text"] = [ast.literal_eval(d) for d in df["text"]]
     train_df, validate = train_test_split(df, test_size=0.2, stratify=df["correct"])

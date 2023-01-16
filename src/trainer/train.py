@@ -3,7 +3,7 @@ import ast
 import pandas as pd
 import pytorch_lightning as pl
 import torch
-from pytorch_lightning.loggers import MLFlowLogger
+from pytorch_lightning.loggers import MLFlowLogger, WandbLogger
 from pytorch_lightning.utilities.seed import seed_everything
 from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
 from sklearn.model_selection import train_test_split
@@ -23,9 +23,10 @@ def run_exp(config):
     debug = config.debug
     batch_size = config.train.batch_size
     if config.dataset.name is not None:
-        data_path = "./data/train_{}.csv".format("sample_"+config.dataset.name)
+        data_path = "./data/train_{}.csv".format(config.dataset.name)
     else:
         data_path = "./data/train_sample.csv"
+    # import ipdb;ipdb.set_trace()
     df = pd.read_csv(data_path)
     df["text"] = [ast.literal_eval(d) for d in df["text"]]
     train_df, validate = train_test_split(df, test_size=0.2, stratify=df["correct"])
@@ -42,7 +43,7 @@ def run_exp(config):
 
     train_df.to_csv("./data/train.csv")
     validate_df.to_csv("./data/validate.csv")
-    test_df.to_csv("./data/test.csv")
+    test_df.to_csv("./data/test2.csv")
 
     train_dataset = ProposalDataset(train_df)
     valid_dataset = ProposalDataset(validate_df)
@@ -58,26 +59,28 @@ def run_exp(config):
         test_dataset, batch_size=batch_size, num_workers=config.dataset.num_workers
     )
     if config.mode == "train":
-        mlflow_logger = MLFlowLogger(experiment_name=exp_name)
-        mlflow_logger.log_hyperparams(config.train)
+        # logger = MLFlowLogger(experiment_name=exp_name)
+        logger =  WandbLogger(project="grad_study",name = f"alpha_{config.train.alpha}")
+        logger.log_hyperparams(config.train)
         # import ipdb;ipdb.set_trace()
-        mlflow_logger.log_hyperparams({"mode": config.mode})
-        mlflow_logger.log_hyperparams({"seed": config.seed})
-        mlflow_logger.log_hyperparams({"model": config.model})
-        mlflow_logger.log_hyperparams({"dataseat": config.dataset.name})
-        train(config, mlflow_logger, train_dataloader, validate_dataloader)
+        logger.log_hyperparams({"mode": config.mode})
+        logger.log_hyperparams({"seed": config.seed})
+        logger.log_hyperparams({"model": config.model})
+        logger.log_hyperparams({"dataseat": config.dataset.name})
+        train(config, logger, train_dataloader, validate_dataloader)
     else:
-        mlflow_logger = MLFlowLogger(experiment_name="test")
-        mlflow_logger.log_hyperparams(config.train)
-        mlflow_logger.log_hyperparams({"mode": config.mode})
-        mlflow_logger.log_hyperparams({"seed": config.seed})
-        mlflow_logger.log_hyperparams({"model": config.model})
-        mlflow_logger.log_hyperparams({"dataseat": config.dataset.name})
+        logger = MLFlowLogger(experiment_name="test")
+        # logger =  WandbLogger(project="grad_study",name = "test")
+        logger.log_hyperparams(config.train)
+        logger.log_hyperparams({"mode": config.mode})
+        logger.log_hyperparams({"seed": config.seed})
+        logger.log_hyperparams({"model": config.model})
+        logger.log_hyperparams({"dataseat": config.dataset.name})
         eval(
             config,
             test,
             test_dataloader,
-            mlflow_logger,
+            logger,
         )
 
 
@@ -123,76 +126,80 @@ def eval(config, test, test_dataloader, logger):
         stride=2,
         load_bert=False,
     )
-    path = "./model/proposal/model_{}_alpha_{}_seed_{}.pth".format(
-        config.model, config.train.alpha, config.seed
-    )
-    model.load_state_dict(torch.load(path, map_location=device))
-    model = model.to(device)
-    predictions = []
-    data = []
-    for batch in test_dataloader:
-        input_ids = batch["tokens"].to(device)
-        attention_mask = batch["attention_mask"].to(device)
-        system_dicision = batch["system_dicision"].to(device)
-        system_out = batch["system_out"].to(device)
-        crowd_dicision = batch["crowd_dicision"].to(device)
-        annotator = batch["correct"].to(device)
-        text = batch["text"]
-        attribute = batch["attribute"]
-        answer = annotator.to("cpu")
-        out = model(input_ids, attention_mask)
-        model_ans, s_count, c_count, a_count, method = model.predict(
-            out, system_out, system_dicision, crowd_dicision, annotator
+    alphas = [i/10 for i in range(11)]
+    for alpha in alphas:
+        seed_everything(config.seed)
+        path = "./model/proposal/model_{}_alpha_{}_seed_{}.pth".format(
+            config.model, alpha, config.seed
         )
+        model.load_state_dict(torch.load(path, map_location=device))
+        model = model.to(device)
+        predictions = []
+        data = []
+        for batch in test_dataloader:
+            input_ids = batch["tokens"].to(device)
+            attention_mask = batch["attention_mask"].to(device)
+            system_dicision = batch["system_dicision"].to(device)
+            system_out = batch["system_out"].to(device)
+            crowd_dicision = batch["crowd_dicision"].to(device)
+            annotator = batch["correct"].to(device)
+            text = batch["text"]
+            attribute = batch["attribute"]
+            answer = annotator.to("cpu")
+            out = model(input_ids, attention_mask)
+            model_ans, s_count, c_count, a_count, method = model.predict(
+                out, system_out, system_dicision, crowd_dicision, annotator
+            )
 
-        texts = []
-        for i in range(len(text[0])):
-            s = ""
-            for t in text:
-                if t[i] == "<s>":
-                    continue
-                elif t[i] == "</s>":
-                    break
-                s += t[i]
-            texts.append(s)
-        for t, m_a, m, att, ans in zip(texts, model_ans, method, attribute, answer):
-            d = {
-                "text": t,
-                "attribute": att,
-                "model answer": int(m_a.item()),
-                "model choise": m,
-                "answer": ans.item(),
-            }
-            data.append(d)
+            texts = []
+            for i in range(len(text[0])):
+                s = ""
+                for t in text:
+                    if t[i] == "<s>":
+                        continue
+                    elif t[i] == "</s>":
+                        break
+                    s += t[i]
+                texts.append(s)
+            for t, m_a, m, att, ans in zip(texts, model_ans, method, attribute, answer):
+                d = {
+                    "text": t,
+                    "attribute": att,
+                    "model answer": int(m_a.item()),
+                    "model choise": m,
+                    "answer": ans.item(),
+                }
+                data.append(d)
 
-        acc, precision, recall, f1 = calc_metrics(answer, model_ans)
-        predictions += [
-            {
-                "test_accuracy": acc,
-                "test_precision": precision,
-                "test_recall": recall,
-                "test_f1": f1.item(),
-                "system_count": s_count,
-                "crowd_count": c_count,
-                "annotator_count": a_count,
-            }
-        ]
-    df = pd.DataFrame(data)
-    # import ipdb;ipdb.set_trace()
-    c_mat = confusion_matrix(df["answer"], df["model answer"])
-    tn = c_mat[0][0]
-    fn = c_mat[1][0]
-    tp = c_mat[1][1]
-    fp = c_mat[0][1]
-    logger.log_metrics({"test true negative": tn})
-    logger.log_metrics({"test false negative": fn})
-    logger.log_metrics({"test true positive": tp})
-    logger.log_metrics({"test false positive": fp})
-    title = "result_model_{}_alpha_{}_seed_{}.csv".format(
-        config.model, config.train.alpha, config.seed
-    )
-    df.to_csv("./output/" + title, index=False)
-    eval_with_random(predictions, test, logger, config)
+            acc, precision, recall, f1 = calc_metrics(answer, model_ans)
+            predictions += [
+                {
+                    "test_accuracy": acc,
+                    "test_precision": precision,
+                    "test_recall": recall,
+                    "test_f1": f1.item(),
+                    "system_count": s_count,
+                    "crowd_count": c_count,
+                    "annotator_count": a_count,
+                }
+            ]
+        df = pd.DataFrame(data)
+        # import ipdb;ipdb.set_trace()
+        c_mat = confusion_matrix(df["answer"], df["model answer"])
+        tn = c_mat[0][0]
+        fn = c_mat[1][0]
+        tp = c_mat[1][1]
+        fp = c_mat[0][1]
+        logger.log_metrics({"alpha": alpha}, step=alpha)
+        logger.log_metrics({"test true negative": tn}, step= alpha)
+        logger.log_metrics({"test false negative": fn}, step= alpha)
+        logger.log_metrics({"test true positive": tp}, step= alpha)
+        logger.log_metrics({"test false positive": fp}, step= alpha)
+        title = "result_model_{}_alpha_{}_seed_{}.csv".format(
+            config.model, alpha, config.seed
+        )
+        df.to_csv("./output/" + title, index=False)
+        eval_with_random(predictions, test, logger, config, alpha)
 
 
 def calc_metrics(answer, result):
@@ -206,7 +213,7 @@ def calc_metrics(answer, result):
     return (acc, precision, recall, f1)
 
 
-def eval_with_random(predictions, test, logger, config):
+def eval_with_random(predictions, test, logger, config, alpha):
     size = len(predictions)
     crowd_d = test["crowd_dicision"].to_list()
     system_d = test["system_dicision"].to_list()
@@ -224,13 +231,13 @@ def eval_with_random(predictions, test, logger, config):
     precision /= size
     recall /= size
     f1 /= size
-    logger.log_metrics({"test_accuracy": acc})
-    logger.log_metrics({"test_precision": precision})
-    logger.log_metrics({"test_recall": recall})
-    logger.log_metrics({"test_f1": f1})
-    logger.log_metrics({"test_system_count": s_count})
-    logger.log_metrics({"test_crowd_count": c_count})
-    logger.log_metrics({"test_annotator_count": a_count})
+    logger.log_metrics({"test_accuracy": acc}, step= alpha)
+    logger.log_metrics({"test_precision": precision}, step= alpha)
+    logger.log_metrics({"test_recall": recall}, step= alpha)
+    logger.log_metrics({"test_f1": f1}, step= alpha)
+    logger.log_metrics({"test_system_count": s_count}, step= alpha)
+    logger.log_metrics({"test_crowd_count": c_count}, step= alpha)
+    logger.log_metrics({"test_annotator_count": a_count}, step= alpha)
     accs, precisions, recalls, f1s = [], [], [], []
     tns, tps, fns, fps, = (
         [],
@@ -268,11 +275,11 @@ def eval_with_random(predictions, test, logger, config):
     fn = calc_mean(fns)
     fp = calc_mean(fps)
     print(acc, precision, recall, f1)
-    logger.log_metrics({"random_accuracy": acc})
-    logger.log_metrics({"random_precision": precision})
-    logger.log_metrics({"random_recall": recall})
-    logger.log_metrics({"random_f1": f1})
-    logger.log_metrics({"random true negative": tn})
-    logger.log_metrics({"random false negative": fn})
-    logger.log_metrics({"random true positive": tp})
-    logger.log_metrics({"random false positive": fp})
+    logger.log_metrics({"random_accuracy": acc}, step= alpha)
+    logger.log_metrics({"random_precision": precision}, step= alpha)
+    logger.log_metrics({"random_recall": recall}, step= alpha)
+    logger.log_metrics({"random_f1": f1}, step= alpha)
+    logger.log_metrics({"random true negative": tn}, step= alpha)
+    logger.log_metrics({"random false negative": fn}, step= alpha)
+    logger.log_metrics({"random true positive": tp}, step= alpha)
+    logger.log_metrics({"random false positive": fp}, step= alpha)

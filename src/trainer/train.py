@@ -29,9 +29,9 @@ def run_exp(config):
     # import ipdb;ipdb.set_trace()
     df = pd.read_csv(data_path)
     df["text"] = [ast.literal_eval(d) for d in df["text"]]
-    train_df, validate = train_test_split(df, test_size=0.2, stratify=df["correct"])
+    train_df, validate = train_test_split(df, test_size=0.2, stratify=df["attribute"])
     validate, test = train_test_split(
-        validate, test_size=0.5, stratify=validate["correct"]
+        validate, test_size=0.5, stratify=validate["attribute"]
     )
     if debug:
         train_df = train_df[: batch_size * 2]
@@ -60,7 +60,7 @@ def run_exp(config):
     )
     if config.mode == "train":
         # logger = MLFlowLogger(experiment_name=exp_name)
-        logger =  WandbLogger(project="grad_study",name = f"alpha_{config.train.alpha}")
+        logger =  WandbLogger(project="grad_study_train",name = f"alpha_{config.train.alpha}")
         logger.log_hyperparams(config.train)
         # import ipdb;ipdb.set_trace()
         logger.log_hyperparams({"mode": config.mode})
@@ -69,8 +69,8 @@ def run_exp(config):
         logger.log_hyperparams({"dataseat": config.dataset.name})
         train(config, logger, train_dataloader, validate_dataloader)
     else:
-        logger = MLFlowLogger(experiment_name="test")
-        # logger =  WandbLogger(project="grad_study",name = "test")
+        # logger = MLFlowLogger(experiment_name="test_alpha")
+        logger =  WandbLogger(project="grad_study_test",name = "test")
         logger.log_hyperparams(config.train)
         logger.log_hyperparams({"mode": config.mode})
         logger.log_hyperparams({"seed": config.seed})
@@ -126,7 +126,7 @@ def eval(config, test, test_dataloader, logger):
         stride=2,
         load_bert=False,
     )
-    alphas = [i/10 for i in range(11)]
+    alphas = [i/10 for i in range(1, 11)]
     for alpha in alphas:
         seed_everything(config.seed)
         path = "./model/proposal/model_{}_alpha_{}_seed_{}.pth".format(
@@ -190,6 +190,7 @@ def eval(config, test, test_dataloader, logger):
         fn = c_mat[1][0]
         tp = c_mat[1][1]
         fp = c_mat[0][1]
+        alpha = alpha * 10
         logger.log_metrics({"alpha": alpha}, step=alpha)
         logger.log_metrics({"test true negative": tn}, step= alpha)
         logger.log_metrics({"test false negative": fn}, step= alpha)

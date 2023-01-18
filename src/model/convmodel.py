@@ -86,7 +86,7 @@ class ConvolutionModel(ModelInterface):
         model_ans = []
         system_crowd = []
         s_count, c_count, a_count = 0, 0, 0
-        out = torch.stack((system_out, out[:, 1], out[:, 2]), -1)
+        # out = torch.stack((system_out, out[:, 1], out[:, 2]), -1)
         index = torch.argmax(out, dim=1)
         for i, idx in enumerate(index):
             if idx == 0:

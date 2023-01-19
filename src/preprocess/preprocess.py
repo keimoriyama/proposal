@@ -69,8 +69,7 @@ def main():
         df[column_name] = dicision_df
         # システムのデータ作成
         # special_attribute = [a for i, a in enumerate(df['attribute'].value_counts().index) if i %2 == 0]
-        special_attribute = ['動物', "所在地"]
-        # import ipdb; ipdb.set_trace()
+        special_attribute = ['動物', "別名"]
         datas = []
         i = -1
         for _, data in df.iterrows():

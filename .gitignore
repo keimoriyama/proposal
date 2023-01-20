@@ -6,7 +6,6 @@ model/*
 wandb
 logs
 core
-train.csv
 src/__pycache__
 eda_notebooks
 train.sh

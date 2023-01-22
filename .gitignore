@@ -9,6 +9,7 @@ core
 src/__pycache__
 eda_notebooks
 train.sh
+eval.sh
 Makefile
 data_analysis
 config/*

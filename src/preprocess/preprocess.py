@@ -103,7 +103,7 @@ def main():
         .replace(False, 0)
         .reset_index()
     )
-    df.to_csv("./data/train_{}.csv".format("sample_"+config.dataset.name), index=False)
+    df.to_csv("./data/train_{}.csv".format(config.dataset.name), index=False)
     print("system")
     system_score = calc_metrics(df["correct"], df["system_dicision"])
     system_score['kind'] = 'system'
@@ -147,7 +147,7 @@ def calc_metrics(ans, out):
             acc, f1, pre, recall
         )
     )
-    return {"accuracy":acc,"f1":f1,"recall":recall, "precisoin":pre}
+    return {"accuracy":acc,"f1":f1,"recall":recall, "precision":pre}
 
 if __name__ == "__main__":
     main()

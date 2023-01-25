@@ -55,8 +55,8 @@ def run_exp(config):
         test_dataset, batch_size=batch_size, num_workers=config.dataset.num_workers
     )
     if config.mode == "train":
-        # logger = MLFlowLogger(experiment_name=exp_name)
-        logger =  WandbLogger(project="grad_study_train",name = f"alpha_{config.train.alpha}")
+        logger = MLFlowLogger(experiment_name=exp_name)
+        # logger =  WandbLogger(project="grad_study_train",name = f"alpha_{config.train.alpha}")
         logger.log_hyperparams(config.train)
         # import ipdb;ipdb.set_trace()
         logger.log_hyperparams({"mode": config.mode})
@@ -66,8 +66,8 @@ def run_exp(config):
         train(config, logger, train_dataloader, validate_dataloader)
     else:
         # logger = MLFlowLogger(experiment_name="test_alpha")
-        # logger =  WandbLogger(project="grad_study_test",name = "test")
-        logger = TensorBoardLogger("test", name = "test")
+        logger =  WandbLogger(project="grad_study_test",name = "test")
+        # logger = TensorBoardLogger("test", name = "test")
         logger.log_hyperparams(config.train)
         logger.log_hyperparams({"mode": config.mode})
         logger.log_hyperparams({"seed": config.seed})
@@ -124,6 +124,7 @@ def eval(config, test, test_dataloader, logger):
         load_bert=False,
     )
     alphas = [i/10 for i in range(11)]
+    scores = []
     for alpha in alphas:
         seed_everything(config.seed)
         path = "./model/proposal/model_{}_alpha_{}_seed_{}.pth".format(
@@ -175,8 +176,11 @@ def eval(config, test, test_dataloader, logger):
             a_counts += a_count
             s_counts += s_count
         
-        alpha = alpha * 10
+        # alpha = alpha * 10
+        r_acc, r_f1, r_precision, r_recall = eval_with_random(test, logger, config, alpha, c_counts, a_counts)
         acc, precision, recall, f1 = calc_metrics(answers, model_pred)
+        score = {"alpha" :  alpha,"model_accuracy": acc, "model_precision": precision,"model_recall": recall,"model_f1": f1, "model_system_count": s_counts, "model_crowd_count": c_counts,"model_annotator_count": a_counts, "random_accuracy": r_acc, "random_f1": r_f1, "random_precision": r_precision, "random_recall": r_recall}
+        scores.append(score)
         logger.log_metrics({"model_accuracy": acc}, step= alpha)
         logger.log_metrics({"model_precision": precision}, step= alpha)
         logger.log_metrics({"model_recall": recall}, step= alpha)
@@ -202,7 +206,8 @@ def eval(config, test, test_dataloader, logger):
             config.model, alpha, config.seed
         )
         df.to_csv("./output/" + title, index=False)
-        eval_with_random(test, logger, config, alpha, c_count, a_count)
+    scores = pd.DataFrame(scores)
+    scores.to_csv("./output/scores.csv", index = False)
 
 
 def calc_metrics(answer, result):
@@ -230,6 +235,7 @@ def eval_with_random(test, logger, config, alpha, c_count, a_count):
         precision, recall, f1, _ = precision_recall_fscore_support(
             random_pred, answer, average="macro"
         )
+        
         c_mat = confusion_matrix(answer, random_pred)
         tns.append(c_mat[0][0])
         fns.append(c_mat[1][0])
@@ -261,3 +267,4 @@ def eval_with_random(test, logger, config, alpha, c_count, a_count):
     logger.log_metrics({"random false negative": fn}, step= alpha)
     logger.log_metrics({"random true positive": tp}, step= alpha)
     logger.log_metrics({"random false positive": fp}, step= alpha)
+    return (acc, f1, precision, recall)

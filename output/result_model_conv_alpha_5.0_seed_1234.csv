@@ -1,4 +1,4 @@
-text,attribute,model answer,model choise,answer
+text,attribute,model prediction,model choise,answer
 多々良沼,公園,0,crowd,0
 約50万～35万年前,形成時期,0,crowd,1
 東経138度16分,幅,0,annotator,0

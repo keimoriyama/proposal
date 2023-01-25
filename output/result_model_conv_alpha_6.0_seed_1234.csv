@@ -1,4 +1,4 @@
-text,attribute,model answer,model choise,answer
+text,attribute,model prediction,model choise,answer
 多々良沼,公園,0,crowd,0
 約50万～35万年前,形成時期,0,crowd,1
 東経138度16分,幅,0,annotator,0
@@ -50,7 +50,7 @@ km最大水深7[1,周囲長,0,crowd,0
 36.50083,座標・緯度,0,crowd,0
 渡り鳥,動物,0,crowd,0
 1982年,形成時期,0,crowd,0
-43.700,座標・緯度,1,system,0
+43.700,座標・緯度,0,system,0
 赤,構成する湖沼,0,crowd,0
 氷河湖,形成時期,0,crowd,0
 北緯28.933度,座標・緯度,0,annotator,0
@@ -199,7 +199,7 @@ u▁mi)水面標高6▁m▁(20▁f,貯水量,0,crowd,0
 埼玉地区,所在地,1,crowd,0
 塩沢堰,成因,0,crowd,0
 白鳥,動物,0,crowd,1
-北緯43,島,0,system,0
+北緯43,島,1,system,0
 酸栄養湖,種類,1,crowd,1
 湖,種類,0,crowd,0
 ボリビアの,国内位置,0,crowd,0

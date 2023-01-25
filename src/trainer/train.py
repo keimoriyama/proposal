@@ -3,14 +3,11 @@ import ast
 import pandas as pd
 import pytorch_lightning as pl
 import torch
-from pytorch_lightning.loggers import MLFlowLogger, WandbLogger
+from pytorch_lightning.loggers import MLFlowLogger, WandbLogger, TensorBoardLogger
 from pytorch_lightning.utilities.seed import seed_everything
-from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
+from sklearn.metrics import confusion_matrix, precision_recall_fscore_support, accuracy_score
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
-from torchmetrics import ConfusionMatrix, F1Score
-from torchmetrics.functional import precision_recall
-from tqdm import tqdm
 
 from dataset import ProposalDataset
 from model import ConvolutionModel, RandomModel
@@ -26,7 +23,6 @@ def run_exp(config):
         data_path = "./data/train_{}.csv".format(config.dataset.name)
     else:
         data_path = "./data/train_sample.csv"
-    # import ipdb;ipdb.set_trace()
     df = pd.read_csv(data_path)
     df["text"] = [ast.literal_eval(d) for d in df["text"]]
     train_df, validate = train_test_split(df, test_size=0.2, stratify=df["attribute"])
@@ -70,7 +66,8 @@ def run_exp(config):
         train(config, logger, train_dataloader, validate_dataloader)
     else:
         # logger = MLFlowLogger(experiment_name="test_alpha")
-        logger =  WandbLogger(project="grad_study_test",name = "test")
+        # logger =  WandbLogger(project="grad_study_test",name = "test")
+        logger = TensorBoardLogger("test", name = "test")
         logger.log_hyperparams(config.train)
         logger.log_hyperparams({"mode": config.mode})
         logger.log_hyperparams({"seed": config.seed})
@@ -126,7 +123,7 @@ def eval(config, test, test_dataloader, logger):
         stride=2,
         load_bert=False,
     )
-    alphas = [i/10 for i in range(1, 11)]
+    alphas = [i/10 for i in range(11)]
     for alpha in alphas:
         seed_everything(config.seed)
         path = "./model/proposal/model_{}_alpha_{}_seed_{}.pth".format(
@@ -134,8 +131,9 @@ def eval(config, test, test_dataloader, logger):
         )
         model.load_state_dict(torch.load(path, map_location=device))
         model = model.to(device)
-        predictions = []
         data = []
+        answers, model_pred = [], []
+        c_counts, a_counts, s_counts =0, 0, 0
         for batch in test_dataloader:
             input_ids = batch["tokens"].to(device)
             attention_mask = batch["attention_mask"].to(device)
@@ -165,80 +163,58 @@ def eval(config, test, test_dataloader, logger):
                 d = {
                     "text": t,
                     "attribute": att,
-                    "model answer": int(m_a.item()),
+                    "model prediction": int(m_a.item()),
                     "model choise": m,
                     "answer": ans.item(),
                 }
                 data.append(d)
 
-            acc, precision, recall, f1 = calc_metrics(answer, model_ans)
-            predictions += [
-                {
-                    "test_accuracy": acc,
-                    "test_precision": precision,
-                    "test_recall": recall,
-                    "test_f1": f1.item(),
-                    "system_count": s_count,
-                    "crowd_count": c_count,
-                    "annotator_count": a_count,
-                }
-            ]
+            answers+= answer.tolist()
+            model_pred += model_ans.to(torch.int32).tolist()
+            c_counts += c_count
+            a_counts += a_count
+            s_counts += s_count
+        
+        alpha = alpha * 10
+        acc, precision, recall, f1 = calc_metrics(answers, model_pred)
+        logger.log_metrics({"model_accuracy": acc}, step= alpha)
+        logger.log_metrics({"model_precision": precision}, step= alpha)
+        logger.log_metrics({"model_recall": recall}, step= alpha)
+        logger.log_metrics({"model_f1": f1}, step= alpha)
+        logger.log_metrics({"model_system_count": s_counts}, step= alpha)
+        logger.log_metrics({"model_crowd_count": c_counts}, step= alpha)
+        logger.log_metrics({"model_annotator_count": a_counts}, step= alpha)
+        
         df = pd.DataFrame(data)
         # import ipdb;ipdb.set_trace()
-        c_mat = confusion_matrix(df["answer"], df["model answer"])
+        c_mat = confusion_matrix(df["answer"], df["model prediction"])
         tn = c_mat[0][0]
         fn = c_mat[1][0]
         tp = c_mat[1][1]
         fp = c_mat[0][1]
-        alpha = alpha * 10
+        
         logger.log_metrics({"alpha": alpha}, step=alpha)
-        logger.log_metrics({"test true negative": tn}, step= alpha)
-        logger.log_metrics({"test false negative": fn}, step= alpha)
-        logger.log_metrics({"test true positive": tp}, step= alpha)
-        logger.log_metrics({"test false positive": fp}, step= alpha)
+        logger.log_metrics({"model true negative": tn}, step= alpha)
+        logger.log_metrics({"model false negative": fn}, step= alpha)
+        logger.log_metrics({"model true positive": tp}, step= alpha)
+        logger.log_metrics({"model false positive": fp}, step= alpha)
         title = "result_model_{}_alpha_{}_seed_{}.csv".format(
             config.model, alpha, config.seed
         )
         df.to_csv("./output/" + title, index=False)
-        eval_with_random(predictions, test, logger, config, alpha)
+        eval_with_random(test, logger, config, alpha, c_count, a_count)
 
 
 def calc_metrics(answer, result):
-    f1_score = F1Score()
-    acc = sum(answer == result) / len(answer)
-    precision, recall = precision_recall(result, answer)
-    acc = acc.item()
-    precision = precision.item()
-    recall = recall.item()
-    f1 = f1_score(result, answer)
+    acc = accuracy_score(answer, result)
+    precision, recall, f1, _= precision_recall_fscore_support(answer, result, average='binary')
     return (acc, precision, recall, f1)
 
 
-def eval_with_random(predictions, test, logger, config, alpha):
-    size = len(predictions)
+def eval_with_random(test, logger, config, alpha, c_count, a_count):
     crowd_d = test["crowd_dicision"].to_list()
     system_d = test["system_dicision"].to_list()
     answer = test["correct"].to_list()
-    acc, precision, recall, f1, s_count, c_count, a_count = 0, 0, 0, 0, 0, 0, 0
-    for out in predictions:
-        acc += out["test_accuracy"]
-        precision += out["test_precision"]
-        recall += out["test_recall"]
-        f1 += out["test_f1"]
-        s_count += out["system_count"]
-        c_count += out["crowd_count"]
-        a_count += out["annotator_count"]
-    acc /= size
-    precision /= size
-    recall /= size
-    f1 /= size
-    logger.log_metrics({"test_accuracy": acc}, step= alpha)
-    logger.log_metrics({"test_precision": precision}, step= alpha)
-    logger.log_metrics({"test_recall": recall}, step= alpha)
-    logger.log_metrics({"test_f1": f1}, step= alpha)
-    logger.log_metrics({"test_system_count": s_count}, step= alpha)
-    logger.log_metrics({"test_crowd_count": c_count}, step= alpha)
-    logger.log_metrics({"test_annotator_count": a_count}, step= alpha)
     accs, precisions, recalls, f1s = [], [], [], []
     tns, tps, fns, fps, = (
         [],
@@ -250,7 +226,7 @@ def eval_with_random(predictions, test, logger, config, alpha):
     for i in range(100):
         seed_everything(config.seed + i + 1)
         random_pred = RandomModel.predict(system_d, crowd_d, answer, c_count, a_count)
-        acc = sum([a == r for a, r in zip(answer, random_pred)]) / len(answer)
+        acc = accuracy_score(answer, random_pred)
         precision, recall, f1, _ = precision_recall_fscore_support(
             random_pred, answer, average="macro"
         )
@@ -271,6 +247,7 @@ def eval_with_random(predictions, test, logger, config, alpha):
     precision = calc_mean(precisions)
     recall = calc_mean(recalls)
     f1 = calc_mean(f1s)
+    
     tn = calc_mean(tns)
     tp = calc_mean(tps)
     fn = calc_mean(fns)

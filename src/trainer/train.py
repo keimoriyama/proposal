@@ -160,13 +160,16 @@ def eval(config, test, test_dataloader, logger):
                         break
                     s += t[i]
                 texts.append(s)
-            for t, m_a, m, att, ans in zip(texts, model_ans, method, attribute, answer):
+            for t, m_a, m, att, ans, o in zip(texts, model_ans, method, attribute, answer, out):
+                # import ipdb; ipdb.set_trace()
+                o = o.tolist()
                 d = {
                     "text": t,
                     "attribute": att,
                     "model prediction": int(m_a.item()),
                     "model choise": m,
                     "answer": ans.item(),
+                    "model output": o
                 }
                 data.append(d)
 

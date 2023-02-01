@@ -125,6 +125,7 @@ def eval(config, test, test_dataloader, logger):
     )
     alphas = [i/10 for i in range(11)]
     scores = []
+    softmax = torch.nn.Softmax(dim=1)
     for alpha in alphas:
         seed_everything(config.seed)
         path = "./model/proposal/model_{}_alpha_{}_seed_{}.pth".format(
@@ -145,7 +146,7 @@ def eval(config, test, test_dataloader, logger):
             text = batch["text"]
             attribute = batch["attribute"]
             answer = annotator.to("cpu")
-            out = model(input_ids, attention_mask)
+            out = softmax(model(input_ids, attention_mask))
             model_ans, s_count, c_count, a_count, method = model.predict(
                 out, system_out, system_dicision, crowd_dicision, annotator
             )
